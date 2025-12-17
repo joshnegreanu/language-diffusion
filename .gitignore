@@ -1,0 +1,5 @@
+/.conda
+/data
+/models
+/old
+/wandb
