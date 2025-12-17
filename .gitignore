@@ -1,5 +1,6 @@
+# python environment
 /.conda
-/data
-/models
-/old
+
+# misc directories
+/checkpoints
 /wandb
