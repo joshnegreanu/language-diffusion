@@ -46,9 +46,9 @@ train_config = {
 }
 
 model_config = {
-    'emb_dim': 300,
-    'num_layers': 24,
-    'num_heads': 10
+    'emb_dim': 256,
+    'num_layers': 16,
+    'num_heads': 8
 }
 
 generation_config = {
@@ -114,20 +114,19 @@ main
 """
 def main():
     # create dataset
-    dataset = LanguageDataset(max_examples=100000, max_len=512, bs=train_config['bs'])
+    dataset = LanguageDataset(max_examples=100000, max_len=1000, bs=train_config['bs'])
 
     # create language model
     model = LanguageTransformer(
-        vocab_size=dataset.vocab_len,
+        vocab_size=len(dataset.vocab),
         embed_dim=model_config['emb_dim'],
         num_layers=model_config['num_layers'],
-        num_heads=model_config['num_heads'],
-        word_emb=dataset.word2vec_embeddings
+        num_heads=model_config['num_heads']
     ).to(device)
-    dry_run(model, train_config['bs'], dataset.vocab_len, 100)
+    dry_run(model, train_config['bs'], len(dataset.vocab), 100)
 
     # enter training cycle
-    train(model, dataset.dataloader)
+    train(model, dataset.create_dataloader())
 
 
 """
