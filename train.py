@@ -1,5 +1,6 @@
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 import torch
 import math
@@ -17,12 +18,16 @@ from staticvectors import StaticVectors
 from datetime import datetime
 from tqdm import tqdm
 
-# custom modules
 from models.LanguageTransformer import LanguageTransformer
 from data.LanguageDataset import PoetryDataset
 
-# set appropriate device
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('mps')
+# dynamically select device
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available() and torch.backends.mps.is_built():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
 
 
 """
@@ -50,13 +55,13 @@ Can be changed prior to training/autoregressive generation.
 train_config = {
     'bs': 32,
     'lr': 0.0001,
-    'weight_decay': 0.00001,
+    'weight_decay': 0.000001,
     'max_epochs': 10
 }
 
 model_config = {
     'emb_dim': 300,
-    'num_layers': 12,
+    'num_layers': 16,
     'num_heads': 4
 }
 

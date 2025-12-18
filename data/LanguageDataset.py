@@ -1,3 +1,6 @@
+import os
+os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+
 import torch
 import pandas as pd
 
@@ -7,8 +10,13 @@ from datasets import load_dataset
 from transformers import AutoTokenizer
 from staticvectors import StaticVectors
 
-# set appropriate device
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('mps')
+# dynamically select device
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available() and torch.backends.mps.is_built():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
 
 
 """
@@ -38,7 +46,7 @@ class PoetryDataset():
         poetry_dataset = load_dataset("merve/poetry")
 
         # tokenize (create tuple pair)
-        dataset_tokens = self.tokenizer(list(poetry_dataset['train']['content']), padding='max_length', max_length=256, truncation=True, return_tensors="pt", add_special_tokens=True)
+        dataset_tokens = self.tokenizer(list(poetry_dataset['train']['content']), padding='max_length', max_length=512, truncation=True, return_tensors="pt", add_special_tokens=True)
         inputs = dataset_tokens.input_ids[:, :-1]
         labels = dataset_tokens.input_ids[:, 1:]
         self.tokenized_dataset = torch.utils.data.TensorDataset(inputs, labels)
