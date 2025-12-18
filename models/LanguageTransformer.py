@@ -64,13 +64,27 @@ class PositionalEncoding(nn.Module):
 		return x
 
 
-'''
+"""
 LanguageTransformer
 	A decoder-only multiheaded transformer with two layer
 	MLP vocabulary classifier.
-'''
+"""
 class LanguageTransformer(nn.Module):
 
+	"""
+	LanguageTransformer.__init__
+		Constructs necessary internal modules for language
+		model. Creates (if necessary) word embeddings,
+		positional encoding, transformer layers, transformer,
+		and linear classifier.
+
+	Args:
+		vocab_size: int size of vocab
+		embed_dim: int embedding dimensioanlity
+		num_layers: int number of transformer layers
+		num_heads: int number of attention heads per layer
+		word_emb: None or torch.Tensor of size (V, D)
+	"""
 	def __init__(
 		self,
 		vocab_size,
@@ -79,20 +93,6 @@ class LanguageTransformer(nn.Module):
 		num_heads,
 		word_emb=None
 	):
-		"""
-		LanguageTransformer.__init__
-			Constructs necessary internal modules for language
-			model. Creates (if necessary) word embeddings,
-			positional encoding, transformer layers, transformer,
-			and linear classifier.
-
-		Args:
-			vocab_size: int size of vocab
-			embed_dim: int embedding dimensioanlity
-			num_layers: int number of transformer layers
-			num_heads: int number of attention heads per layer
-			word_emb: None or torch.Tensor of size (V, D)
-		"""
 		super().__init__()
 
 		if word_emb is not None:
@@ -109,27 +109,41 @@ class LanguageTransformer(nn.Module):
 		transformer_layer = nn.TransformerEncoderLayer(d_model=embed_dim, nhead=num_heads, batch_first=True)
 		self.transformer = nn.TransformerEncoder(encoder_layer=transformer_layer, num_layers=num_layers)
 
-		# vocab classifier (two layer MLP)
-		self.classifier = nn.Sequential(
-			nn.Linear(in_features=embed_dim, out_features=2048),
-			nn.ReLU(),
-			nn.Linear(in_features=2048, out_features=vocab_size)
-		)
-		
+		# vocab classifier
+		self.classifier = nn.Linear(in_features=embed_dim, out_features=vocab_size)
+	
+	"""
+	LanguageTransformer.causal_mask
+		Constructs a causal mask for training on a
+		single input sequence.
+
+	Args:
+		dim: int length of training sequence
+	
+	Returns:
+		torch.Tensor causal mask
+	"""
+	def generate_causal_mask(self, seq_len):
+		# mask out appropriate triangle half
+		inf_tensor = torch.ones(seq_len, seq_len, dtype=torch.float32) * float('-inf')
+		mask = torch.tril(inf_tensor, diagonal=-1).T
+		return mask
+	
+
+	"""
+	LanguageTransformer.forward
+		Applies custom (provided) or learned embeddings across
+		vocabulary. Positionally encodes embeddings. Generates
+		causal mask and feeds embeddings through transformer.
+		Classifies over vocabulary.
+
+	Args:
+		seq: torch.Tensor of size (B, N)
+
+	Returns:
+		torch.Tensor of size (B, N, V)
+	"""
 	def forward(self, seq):
-		'''
-		LanguageTransformer.forward
-			Applies custom (provided) or learned embeddings across
-			vocabulary. Positionally encodes embeddings. Generates
-			causal mask and feeds embeddings through transformer.
-			Classifies over vocabulary.
-
-		Args:
-			seq: torch.Tensor of size (B, N)
-
-		Returns:
-			torch.Tensor of size (B, N, V)
-		'''
 
 		seq_len = seq.shape[1]
 
@@ -138,8 +152,7 @@ class LanguageTransformer(nn.Module):
 		seq_embed = self.pos_enc(seq_embed)
 
 		# generate causal mask
-		mask = torch.zeros(seq_len, seq_len, dtype=torch.float32)
-		mask = mask.masked_fill(torch.triu(torch.ones(seq_len, seq_len), diagonal=1) == 1, float('-inf')).to(device)
+		mask = self.generate_causal_mask(seq_len)
 		seq_out = self.transformer(src=seq_embed, mask=mask)
 
 		# next token classification

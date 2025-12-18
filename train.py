@@ -8,6 +8,10 @@ import pandas as pd
 import random
 import wandb
 
+import sys
+import signal
+from functools import partial
+
 from torch import nn, optim
 from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR, SequentialLR
 from torch.utils.data import DataLoader, Dataset, ConcatDataset
@@ -19,7 +23,7 @@ from datetime import datetime
 from tqdm import tqdm
 
 from models.LanguageTransformer import LanguageTransformer
-from data.LanguageDataset import PoetryDataset
+from data.LanguageDataset import LanguageDataset
 
 # dynamically select device
 if torch.cuda.is_available():
@@ -28,6 +32,30 @@ elif torch.backends.mps.is_available() and torch.backends.mps.is_built():
     device = torch.device("mps")
 else:
     device = torch.device("cpu")
+
+
+"""
+Training, model, and generation configurations.
+Can be changed prior to training/autoregressive generation.
+"""
+train_config = {
+    'bs': 32,
+    'lr': 0.0001,
+    'weight_decay': 0.000001,
+    'max_epochs': 10
+}
+
+model_config = {
+    'emb_dim': 300,
+    'num_layers': 24,
+    'num_heads': 10
+}
+
+generation_config = {
+    'max_length': 50,
+    'temperature': 0.9,
+    'top_p': 0.9
+}
 
 
 """
@@ -49,46 +77,71 @@ def dry_run(model, bs, vocab_len, seq_len):
 
 
 """
-Training, model, and generation configurations.
-Can be changed prior to training/autoregressive generation.
+interrupt_handler
+    Save model checkpoint in case of terminal interrupt.
+    Special checkpoint file tag not to override current
+    epoch checkpoint.
 """
-train_config = {
-    'bs': 32,
-    'lr': 0.0001,
-    'weight_decay': 0.000001,
-    'max_epochs': 10
-}
-
-model_config = {
-    'emb_dim': 300,
-    'num_layers': 16,
-    'num_heads': 4
-}
-
-generation_config = {
-    'max_length': 50,
-    'temperature': 0.9,
-    'top_p': 0.9
-}
+def interrupt_handler(
+    epoch,
+    model,
+    scheduler,
+    train_config,
+    model_config,
+    generation_config,
+    project_name,
+    run_name,
+    sig,
+    frame
+):
+    # save model on interrupt
+    torch.save({
+        'epoch': epoch,
+        'model_state_dict': model.state_dict(),
+        'scheduler_state_dict': scheduler.state_dict(),
+        'train_config': train_config,
+        'model_config': model_config,
+        'generation_config': generation_config},
+        f"./checkpoints/{project_name}/{run_name}/{epoch}int"
+    )
+    sys.exit(0)
 
 
 """
-Main function (to deal with multiprocessing)
+main
+    Builds a model, checks through a dry run, runs
+    through training cycle.
 """
-if __name__ == '__main__':
-    # create poetry dataset
-    poetry_dataset = PoetryDataset(train_config['bs'])
+def main():
+    # create dataset
+    dataset = LanguageDataset(max_examples=100000, max_len=512, bs=train_config['bs'])
 
     # create language model
     model = LanguageTransformer(
-        vocab_size=poetry_dataset.vocab_len,
+        vocab_size=dataset.vocab_len,
         embed_dim=model_config['emb_dim'],
         num_layers=model_config['num_layers'],
         num_heads=model_config['num_heads'],
-        word_emb=poetry_dataset.word2vec_embeddings
+        word_emb=dataset.word2vec_embeddings
     ).to(device)
-    dry_run(model, train_config['bs'], poetry_dataset.vocab_len, 100)
+    dry_run(model, train_config['bs'], dataset.vocab_len, 100)
 
+    # enter training cycle
+    train(model, dataset.dataloader)
+
+
+"""
+train
+    Sets up wandb logging, creates AdamW optimizer,
+    custom linear warmup and cosine annealing scheduler,
+    trains for designated number of epochs, saving model
+    checkpoints each epoch.
+
+    Args:
+        model: torch.nn.Module language model
+        data_loader: torch.DataLoader training data
+"""
+def train(model, dataloader):
     # set up wandb and checkpoint path
     now = datetime.now()
     project_name = "diffusion-language-model"
@@ -104,28 +157,40 @@ if __name__ == '__main__':
     # construct linear warmup and cosine annealing cooldown
     warmup_epochs = int(train_config['max_epochs'] / 10)
     cooldown_epochs = train_config['max_epochs'] - warmup_epochs
-    epoch_len = len(poetry_dataset.tokenized_dataset) // train_config['bs']
+    epoch_len = len(dataloader)
 
     linear = LinearLR(optimizer, start_factor=0.25, end_factor=1.0, total_iters=warmup_epochs*epoch_len)
     cosine = CosineAnnealingLR(optimizer, T_max=cooldown_epochs*epoch_len, eta_min=1e-6)
     scheduler = SequentialLR(optimizer, schedulers=[linear, cosine], milestones=[warmup_epochs*epoch_len])
 
+    model.train()
+
     # main training loop
     pbar = tqdm(total=(train_config['max_epochs'])*epoch_len, desc="Training Iterations", unit="batch")
     iteration = 0
     for epoch in range(train_config['max_epochs']):
-        model.train()
+        # ignal catching to save model on interrupt
+        signal.signal(signal.SIGINT, partial(interrupt_handler,
+            epoch, model,
+            scheduler, train_config,
+            model_config, generation_config,
+            project_name, run_name))
+        signal.signal(signal.SIGTERM, partial(interrupt_handler,
+            epoch, model,
+            scheduler, train_config,
+            model_config, generation_config,
+            project_name, run_name))
 
         # minibatch gradient descent
-        for batch_idx, batch in enumerate(poetry_dataset.dataloader):
+        for batch_idx, batch in enumerate(dataloader):
             wandb.log({'learning-rate': scheduler.get_last_lr()[0]}, step=iteration)
 
-            inputs = batch[0].to(device)
-            labels = batch[1].to(device)
-            out = model(inputs).permute(0, 2, 1)
+            batch = batch.to(device)
+            out = model(batch)[:,:-1,:]
+            labels = batch[:,1:]
 
             # compute loss
-            loss = criterion(out, labels)
+            loss = criterion(out.permute(0, 2, 1), labels)
             wandb.log({"loss": loss.item()}, step=iteration)
 
             # optimization
@@ -150,3 +215,7 @@ if __name__ == '__main__':
 
     wandb.finish()
     pbar.close()
+
+
+if __name__ == '__main__':
+    main()
