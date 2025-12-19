@@ -22,8 +22,8 @@ from staticvectors import StaticVectors
 from datetime import datetime
 from tqdm import tqdm
 
-from models.LanguageTransformer import LanguageTransformer
-from data.LanguageDataset import LanguageDataset
+from models.LanguageDiffusion import LanguageDiffusion
+from data.DiffuseLanguage import DiffuseLanguageDataset
 
 # dynamically select device
 if torch.cuda.is_available():
@@ -35,10 +35,12 @@ else:
 
 
 """
-Training, model, and generation configurations.
-Can be changed prior to training/autoregressive generation.
+Training  model and configurations.
+Can be changed prior to training.
 """
 train_config = {
+    'max_examples': 100000,
+    'max_len': 1000,
     'bs': 32,
     'lr': 0.0001,
     'weight_decay': 0.000001,
@@ -49,12 +51,6 @@ model_config = {
     'emb_dim': 256,
     'num_layers': 16,
     'num_heads': 8
-}
-
-generation_config = {
-    'max_length': 50,
-    'temperature': 0.9,
-    'top_p': 0.9
 }
 
 
@@ -81,52 +77,36 @@ interrupt_handler
     Save model checkpoint in case of terminal interrupt.
     Special checkpoint file tag not to override current
     epoch checkpoint.
+
+Args:
+    A ton haha...
 """
 def interrupt_handler(
     epoch,
+    loss,
     model,
+    vocab,
     scheduler,
+    optimizer,
     train_config,
     model_config,
-    generation_config,
     project_name,
     run_name,
     sig,
     frame
 ):
-    # save model on interrupt
-    torch.save({
-        'epoch': epoch,
-        'model_state_dict': model.state_dict(),
-        'scheduler_state_dict': scheduler.state_dict(),
-        'train_config': train_config,
-        'model_config': model_config,
-        'generation_config': generation_config},
-        f"./checkpoints/{project_name}/{run_name}/{epoch}int"
-    )
-    sys.exit(0)
-
-
-"""
-main
-    Builds a model, checks through a dry run, runs
-    through training cycle.
-"""
-def main():
-    # create dataset
-    dataset = LanguageDataset(max_examples=100000, max_len=1000, bs=train_config['bs'])
-
-    # create language model
-    model = LanguageTransformer(
-        vocab_size=len(dataset.vocab),
-        embed_dim=model_config['emb_dim'],
-        num_layers=model_config['num_layers'],
-        num_heads=model_config['num_heads']
-    ).to(device)
-    dry_run(model, train_config['bs'], len(dataset.vocab), 100)
-
-    # enter training cycle
-    train(model, dataset.create_dataloader())
+    # save model each epoch
+        torch.save({
+            'epoch': epoch,
+            'loss': loss,
+            'model_state_dict': model.state_dict(),
+            'vocab': vocab,
+            'scheduler_state_dict': scheduler.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'train_config': train_config,
+            'model_config': model_config},
+            f"./checkpoints/{project_name}/{run_name}/{run_name}_epoch{epoch}_int.pth"
+        )
 
 
 """
@@ -140,7 +120,7 @@ train
         model: torch.nn.Module language model
         data_loader: torch.DataLoader training data
 """
-def train(model, dataloader):
+def train(model, dataloader, vocab):
     # set up wandb and checkpoint path
     now = datetime.now()
     project_name = "diffusion-language-model"
@@ -168,28 +148,38 @@ def train(model, dataloader):
     pbar = tqdm(total=(train_config['max_epochs'])*epoch_len, desc="Training Iterations", unit="batch")
     iteration = 0
     for epoch in range(train_config['max_epochs']):
-        # ignal catching to save model on interrupt
+        # signal catching to save model on interrupt
         signal.signal(signal.SIGINT, partial(interrupt_handler,
-            epoch, model,
-            scheduler, train_config,
-            model_config, generation_config,
+            epoch, None,
+            model, vocab,
+            scheduler, optimizer,
+            train_config, model_config,
             project_name, run_name))
         signal.signal(signal.SIGTERM, partial(interrupt_handler,
-            epoch, model,
-            scheduler, train_config,
-            model_config, generation_config,
+            epoch, None,
+            model, vocab,
+            scheduler, optimizer,
+            train_config, model_config,
             project_name, run_name))
 
         # minibatch gradient descent
+        epoch_loss = 0
         for batch_idx, batch in enumerate(dataloader):
             wandb.log({'learning-rate': scheduler.get_last_lr()[0]}, step=iteration)
 
-            batch = batch.to(device)
-            out = model(batch)[:,:-1,:]
-            labels = batch[:,1:]
+            # pick masking rate
+            t = random.uniform(0.01, 0.99)
+
+            mask = torch.rand(batch.shape) <= t
+            masks = batch.masked_fill(mask, vocab.word2idx['<m>']).to(device)
+
+            out = model(masks)
+            labels = batch.to(device)
 
             # compute loss
             loss = criterion(out.permute(0, 2, 1), labels)
+            loss /= t
+            epoch_loss += loss
             wandb.log({"loss": loss.item()}, step=iteration)
 
             # optimization
@@ -204,16 +194,44 @@ def train(model, dataloader):
         # save model each epoch
         torch.save({
             'epoch': epoch,
+            'loss': epoch_loss / epoch_len,
             'model_state_dict': model.state_dict(),
+            'vocab': vocab,
             'scheduler_state_dict': scheduler.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
             'train_config': train_config,
-            'model_config': model_config,
-            'generation_config': generation_config},
-            f"./checkpoints/{project_name}/{run_name}/{epoch}"
+            'model_config': model_config},
+            f"./checkpoints/{project_name}/{run_name}/{run_name}_epoch{epoch}_end.pth"
         )
 
     wandb.finish()
     pbar.close()
+
+
+"""
+main
+    Builds a model, checks through a dry run, runs
+    through training cycle.
+"""
+def main():
+    # create dataset
+    dataset = DiffuseLanguageDataset(
+        max_examples=train_config['max_examples'],
+        max_len=train_config['max_len'],
+        bs=train_config['bs']
+    )
+
+    # create language model
+    model = LanguageDiffusion(
+        vocab_size=len(dataset.vocab),
+        embed_dim=model_config['emb_dim'],
+        num_layers=model_config['num_layers'],
+        num_heads=model_config['num_heads']
+    ).to(device)
+    dry_run(model, train_config['bs'], len(dataset.vocab), 100)
+
+    # enter training cycle
+    train(model, dataset.create_dataloader(), dataset.vocab)
 
 
 if __name__ == '__main__':

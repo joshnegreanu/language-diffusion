@@ -4,3 +4,7 @@
 # misc directories
 /checkpoints
 /wandb
+/testing
+
+# logs
+slurm*.out

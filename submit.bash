@@ -1,12 +1,13 @@
 #!/bin/bash
 
-#SBATCH --partition=gpu
+#SBATCH --partition=dgx2
 #SBATCH --gres=gpu:2g.20gb:1
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 #SBATCH --mem=32G
 #SBATCH --time=1-00:00:00
 #SBATCH --mail-type=BEGIN,END,FAIL
 
+source /nfs/stak/users/negreanj/hpc-share/miniforge/etc/profile.d/conda.sh
 conda init
 conda activate torch_env
-python train.py
+python train_diffusion.py

@@ -66,7 +66,7 @@ class PositionalEncoding(nn.Module):
 
 """
 LanguageTransformer
-	A decoder-only multiheaded transformer with two layer
+	A decoder-only multiheaded transformer with
 	MLP vocabulary classifier.
 """
 class LanguageTransformer(nn.Module):
@@ -144,7 +144,6 @@ class LanguageTransformer(nn.Module):
 		torch.Tensor of size (B, N, V)
 	"""
 	def forward(self, seq):
-
 		seq_len = seq.shape[1]
 
 		# embed sequence w poisitional encodings

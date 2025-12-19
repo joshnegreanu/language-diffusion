@@ -25,14 +25,14 @@ else:
 
 
 """
-Vocabulary
+DiffuseVocabulary
     Builds a vocabulary from a text corpus given
-    a tokenizer. Adds special characters for sequencing
+    a tokenizer. Adds special characters for masking
     and training.
 """
-class Vocabulary:
+class DiffuseVocabulary:
     """
-    Vocabulary.__init__
+    DiffuseVocabulary.__init__
         Internally stores tokenizer, builds vocabulary
         from provided corpus. Defines word2idx and idx2word
         dictionaries for quick lookup.
@@ -46,7 +46,7 @@ class Vocabulary:
         self.word2idx, self.idx2word = self.build_vocab(corpus)
 
     """
-    Vocabulary.__len__
+    DiffuseVocabulary.__len__
         Provides number of distinct tokens in vocabulary.
     
     Returns:
@@ -56,7 +56,7 @@ class Vocabulary:
         return len(self.word2idx)
   
     """
-    Vocabulary.text2idx
+    DiffuseVocabulary.text2idx
         Provides quick lookup for encoding a string
         into its respective tokens.
 
@@ -71,7 +71,7 @@ class Vocabulary:
         return [self.word2idx[t] if t in self.word2idx.keys() else self.word2idx['<?>'] for t in tokens]
 
     """
-    Vocabulary.idx2text
+    DiffuseVocabulary.idx2text
         Provides quick lookup for decoding a list of
         tokens into its respective string.
     
@@ -82,15 +82,15 @@ class Vocabulary:
         string of detokenized words
     """
     def idx2text(self, idxs):
-        return "".join([self.idx2word[i] if i in self.idx2word.keys() else '<?>' for i in idxs])
+        return " ".join([self.idx2word[i] if i in self.idx2word.keys() else '<?>' for i in idxs])
 
 
     """
-    Vocabulary.build_vocab
+    DiffuseVocabulary.build_vocab
         Iterates through text corpus, tokenizes data.
         Constructs lookup dictionaries for conversion
         between text and tokens. Adds special tokens reserved
-        (0, <p>), (1, <s>), (2, </s>), (3, <?>).
+        (0, <p>), (1, <m>), (2, <?>).
     
     Args:
         corpus: list of strings (training examples)
@@ -105,37 +105,33 @@ class Vocabulary:
             cntr.update( [str(x).strip().lower() for x in self.tokenizer(datapoint)] )
 
         tokens = [t for t,c in cntr.items() if c >= 30]
-        word2idx = {t:i+4 for i,t in enumerate(tokens)}
-        idx2word = {i+4:t for i,t in enumerate(tokens)}
+        word2idx = {t:i+3 for i,t in enumerate(tokens)}
+        idx2word = {i+3:t for i,t in enumerate(tokens)}
         
         # padding token
         word2idx['<p>'] = 0
         idx2word[0] = '<p>'
 
-        # start of sequence token
-        word2idx['<s>'] = 1
-        idx2word[1] = '<s>'
+        # masking token
+        word2idx['<m>'] = 1
+        idx2word[1] = '<m>'
 
-        # end of sequence token
-        word2idx['</s>'] = 2
-        idx2word[2] = '</s>'
-
-        # unkown word token
-        word2idx['<?>'] = 3
-        idx2word[3] = '<?>'
+        # unknown word token
+        word2idx['<?>'] = 2
+        idx2word[2] = '<?>'
         
         return word2idx, idx2word
 
 
 """
-LanguageDataset
+DiffuseLanguageDataset
     Custom dataset class for storing poetry dataset
     and custom dataloader.
 """
-class LanguageDataset(Dataset):
+class DiffuseLanguageDataset(Dataset):
     def __init__(self, max_examples, max_len, bs):
         """
-        LanguageDataset.__init__
+        DiffuseLanguageDataset.__init__
             Creates bert tokenizer, tokenizes huggingface language dataset.
             Creates word2vec embeddings for tokenizer vocabulary. Creates
             custom dataloader.
@@ -150,7 +146,7 @@ class LanguageDataset(Dataset):
         print("[dataset] loaded")
 
         self.tokenizer = spacy.load('en_core_web_sm').tokenizer
-        self.vocab = Vocabulary(self.data, self.tokenizer)
+        self.vocab = DiffuseVocabulary(self.data, self.tokenizer)
         print("[dataset] tokenized")
 
         self.max_len = max_len
@@ -158,7 +154,7 @@ class LanguageDataset(Dataset):
 
 
     """
-    LanguageDataset.__len__
+    DiffuseLanguageDataset.__len__
         Provides length of dataset.
     
     Returns:
@@ -169,7 +165,7 @@ class LanguageDataset(Dataset):
 
 
     """
-    LanguageDataset.__getitem__
+    DiffuseLanguageDataset.__getitem__
         Returns a single training example pertaining
         to a given index.
 
@@ -179,12 +175,12 @@ class LanguageDataset(Dataset):
     def __getitem__(self, idx):
         x = self.vocab.text2idx(self.data[idx])
         l = min(self.max_len, len(x))
-        numeralized = [self.vocab.word2idx['<s>']]+x[:l]+[self.vocab.word2idx['</s>']]
+        numeralized = x[:l]
         return torch.tensor(numeralized)
 
 
     """
-    VocabularyDataset.pad_collate
+    DiffuseLanguageDataset.pad_collate
         Pads training examples with token 0 (<p>).
     
     Returns:
