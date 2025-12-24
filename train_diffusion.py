@@ -41,7 +41,7 @@ Can be changed prior to training.
 train_config = {
     'max_examples': 100000,
     'max_len': 1000,
-    'bs': 32,
+    'bs': 16,
     'lr': 0.0001,
     'weight_decay': 0.000001,
     'max_epochs': 10
@@ -49,7 +49,7 @@ train_config = {
 
 model_config = {
     'emb_dim': 256,
-    'num_layers': 16,
+    'num_layers': 24,
     'num_heads': 8
 }
 
@@ -168,13 +168,15 @@ def train(model, dataloader, vocab):
             wandb.log({'learning-rate': scheduler.get_last_lr()[0]}, step=iteration)
 
             # pick masking rate
-            t = random.uniform(0.01, 0.99)
+            t = random.uniform(0.001, 0.999)
 
-            mask = torch.rand(batch.shape) <= t
+            # mask non-padding tokens
+            mask = torch.rand(batch.shape) < t
             masks = batch.masked_fill(mask, vocab.word2idx['<m>']).to(device)
+            # labels = batch.masked_fill(~mask, vocab.word2idx['<p>']).to(device)
+            labels = batch.to(device)
 
             out = model(masks)
-            labels = batch.to(device)
 
             # compute loss
             loss = criterion(out.permute(0, 2, 1), labels)
@@ -216,6 +218,7 @@ main
 def main():
     # create dataset
     dataset = DiffuseLanguageDataset(
+        dataset_name="Elriggs/openwebtext-100k",
         max_examples=train_config['max_examples'],
         max_len=train_config['max_len'],
         bs=train_config['bs']

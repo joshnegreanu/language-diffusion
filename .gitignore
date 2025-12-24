@@ -8,3 +8,6 @@
 
 # logs
 slurm*.out
+
+# cluster job files
+*.sbatch

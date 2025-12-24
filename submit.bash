@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --partition=dgx2
+#SBATCH --partition=dgxh
 #SBATCH --gres=gpu:2g.20gb:1
 #SBATCH --gres=gpu:2
 #SBATCH --mem=32G

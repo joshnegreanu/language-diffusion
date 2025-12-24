@@ -39,9 +39,9 @@ Training  model and configurations.
 Can be changed prior to training.
 """
 train_config = {
-    'max_examples': 500000,
+    'max_examples': 100000,
     'max_len': 1000,
-    'bs': 32,
+    'bs': 16,
     'lr': 0.0001,
     'weight_decay': 0.000001,
     'max_epochs': 10
@@ -49,7 +49,7 @@ train_config = {
 
 model_config = {
     'emb_dim': 256,
-    'num_layers': 16,
+    'num_layers': 24,
     'num_heads': 8
 }
 
@@ -123,8 +123,8 @@ train
 def train(model, dataloader, vocab):
     # set up wandb and checkpoint path
     now = datetime.now()
-    project_name = "diffusion-language-model"
-    run_name = "dlm-" + now.strftime("%Y_%m_%d_%H_%m")
+    project_name = "autoregressive-language-model"
+    run_name = "alm-" + now.strftime("%Y_%m_%d_%H_%m")
     wandb.login()
     wandb.init(project=project_name, name=run_name, config=train_config)
     os.makedirs(f"./checkpoints/{project_name}/{run_name}", exist_ok=True)
@@ -210,6 +210,7 @@ main
 def main():
     # create dataset
     dataset = AutoregressiveLanguageDataset(
+        dataset_name="Elriggs/openwebtext-100k",
         max_examples=train_config['max_examples'],
         max_len=train_config['max_len'],
         bs=train_config['bs']

@@ -90,7 +90,7 @@ class DiffuseVocabulary:
         Iterates through text corpus, tokenizes data.
         Constructs lookup dictionaries for conversion
         between text and tokens. Adds special tokens reserved
-        (0, <p>), (1, <m>), (2, <?>).
+        (0, <p>), (1, <s>), (2, </s>), (3, <?>), (4, <m>).
     
     Args:
         corpus: list of strings (training examples)
@@ -105,20 +105,24 @@ class DiffuseVocabulary:
             cntr.update( [str(x).strip().lower() for x in self.tokenizer(datapoint)] )
 
         tokens = [t for t,c in cntr.items() if c >= 30]
-        word2idx = {t:i+3 for i,t in enumerate(tokens)}
-        idx2word = {i+3:t for i,t in enumerate(tokens)}
+        word2idx = {t:i+4 for i,t in enumerate(tokens)}
+        idx2word = {i+4:t for i,t in enumerate(tokens)}
         
         # padding token
         word2idx['<p>'] = 0
         idx2word[0] = '<p>'
 
-        # masking token
+        # start of sequence token
         word2idx['<m>'] = 1
         idx2word[1] = '<m>'
 
-        # unknown word token
-        word2idx['<?>'] = 2
-        idx2word[2] = '<?>'
+        # end of sequence token
+        word2idx['</s>'] = 2
+        idx2word[2] = '</s>'
+
+        # unkown word token
+        word2idx['<?>'] = 3
+        idx2word[3] = '<?>'
         
         return word2idx, idx2word
 
@@ -129,7 +133,7 @@ DiffuseLanguageDataset
     and custom dataloader.
 """
 class DiffuseLanguageDataset(Dataset):
-    def __init__(self, max_examples, max_len, bs):
+    def __init__(self, dataset_name, max_examples, max_len, bs):
         """
         DiffuseLanguageDataset.__init__
             Creates bert tokenizer, tokenizes huggingface language dataset.
@@ -137,11 +141,12 @@ class DiffuseLanguageDataset(Dataset):
             custom dataloader.
         
         Args:
+            dataset_name: string huggingface dataset name
             max_examples: int max number of training examples to sample
             max_len: max length of each example
             bs: int batch size
         """
-        dataset = load_dataset("roneneldan/TinyStories", split='train')
+        dataset = load_dataset(dataset_name, split='train')
         self.data = [x["text"] for x in random.sample(list(dataset), max_examples)]
         print("[dataset] loaded")
 
@@ -175,7 +180,7 @@ class DiffuseLanguageDataset(Dataset):
     def __getitem__(self, idx):
         x = self.vocab.text2idx(self.data[idx])
         l = min(self.max_len, len(x))
-        numeralized = x[:l]
+        numeralized = x[:l]+[self.vocab.word2idx['</s>']]
         return torch.tensor(numeralized)
 
 

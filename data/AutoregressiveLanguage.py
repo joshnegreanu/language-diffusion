@@ -133,7 +133,7 @@ AutoregressiveLanguageDataset
     and custom dataloader.
 """
 class AutoregressiveLanguageDataset(Dataset):
-    def __init__(self, max_examples, max_len, bs):
+    def __init__(self, dataset_name, max_examples, max_len, bs):
         """
         AutoregressiveLanguageDataset.__init__
             Creates bert tokenizer, tokenizes huggingface language dataset.
@@ -141,11 +141,12 @@ class AutoregressiveLanguageDataset(Dataset):
             custom dataloader.
         
         Args:
+            dataset_name: string huggingface dataset name
             max_examples: int max number of training examples to sample
             max_len: max length of each example
             bs: int batch size
         """
-        dataset = load_dataset("roneneldan/TinyStories", split='train')
+        dataset = load_dataset(dataset_name, split='train')
         self.data = [x["text"] for x in random.sample(list(dataset), max_examples)]
         print("[dataset] loaded")
 

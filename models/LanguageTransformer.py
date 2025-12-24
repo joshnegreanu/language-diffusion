@@ -5,6 +5,8 @@ import torch
 import math
 import torch.nn as nn
 
+from utils import Transformer, PositionalEncoding
+
 # dynamically select device
 if torch.cuda.is_available():
     device = torch.device("cuda")
@@ -12,56 +14,6 @@ elif torch.backends.mps.is_available() and torch.backends.mps.is_built():
     device = torch.device("mps")
 else:
     device = torch.device("cpu")
-
-
-"""
-PositionalEncoding
-	Applies positional encoding to sequential word embeddings
-	via sinusoidal encoding. Used by LanguageTransformer for
-	internal positional encoding.
-"""
-class PositionalEncoding(nn.Module):
-	def __init__(self, embed_dim):
-		super().__init__()
-		"""
-		PositionalEncoding.__init__
-			Initializes encoding with proper embedding dimension.
-
-		Args:
-			embed_dim: int embedding dimensionality
-		"""
-
-		self.embed_dim = embed_dim
-
-	def forward(self, x):
-		"""
-		PositionalEncoding.forward
-			Applies sinusoidal positional encoding to input.
-		
-		Args:
-			x: torch.Tensor of size (B, N, D)
-
-		Returns:
-			torch.Tensor of size (B, N, D)
-		"""
-
-		batch_size = x.shape[0]
-		seq_len = x.shape[1]
-
-		# calcualte sinusoidal encodings
-		pe = torch.zeros(1, seq_len, self.embed_dim).to(x.device)
-		pos = torch.arange(0, seq_len, dtype=torch.float32)
-		enc = torch.exp((-math.log(10000.0)) * (torch.arange(0, self.embed_dim, step=2, dtype=torch.float32) / self.embed_dim))
-
-		# calculate positional encoding
-		prod = torch.outer(pos, enc)
-		pe[0, :, 0::2] = torch.sin(prod)
-		pe[0, :, 1::2] = torch.cos(prod)
-		pe = pe.expand(batch_size, -1, -1)
-
-		# apply as residual
-		x = x + pe
-		return x
 
 
 """
@@ -106,8 +58,7 @@ class LanguageTransformer(nn.Module):
 		self.pos_enc = PositionalEncoding(embed_dim=embed_dim)
 
 		# custom transformer
-		transformer_layer = nn.TransformerEncoderLayer(d_model=embed_dim, nhead=num_heads, batch_first=True)
-		self.transformer = nn.TransformerEncoder(encoder_layer=transformer_layer, num_layers=num_layers)
+		self.transformer = Transformer(embed_dim, num_heads, num_layers)
 
 		# vocab classifier
 		self.classifier = nn.Linear(in_features=embed_dim, out_features=vocab_size)
