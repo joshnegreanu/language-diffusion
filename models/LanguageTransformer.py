@@ -5,7 +5,7 @@ import torch
 import math
 import torch.nn as nn
 
-from utils import Transformer, PositionalEncoding
+from models.utils import Transformer, PositionalEncoding
 
 # dynamically select device
 if torch.cuda.is_available():
@@ -77,8 +77,8 @@ class LanguageTransformer(nn.Module):
 	def generate_causal_mask(self, seq_len):
 		# mask out appropriate triangle half
 		inf_tensor = torch.ones(seq_len, seq_len, dtype=torch.float32) * float('-inf')
-		mask = torch.tril(inf_tensor, diagonal=-1).T
-		return mask
+		mask = torch.tril(inf_tensor, diagonal=0).T
+		return mask.to(device)
 	
 
 	"""
@@ -103,7 +103,7 @@ class LanguageTransformer(nn.Module):
 
 		# generate causal mask
 		mask = self.generate_causal_mask(seq_len)
-		seq_out = self.transformer(src=seq_embed, mask=mask)
+		seq_out = self.transformer(seq_embed, mask)
 
 		# next token classification
 		out = self.classifier(seq_out)

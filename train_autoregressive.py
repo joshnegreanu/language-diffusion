@@ -39,7 +39,7 @@ Training  model and configurations.
 Can be changed prior to training.
 """
 train_config = {
-    'max_examples': 100000,
+    'max_examples': 1000,
     'max_len': 1000,
     'bs': 16,
     'lr': 0.0001,
@@ -210,7 +210,7 @@ main
 def main():
     # create dataset
     dataset = AutoregressiveLanguageDataset(
-        dataset_name="Elriggs/openwebtext-100k",
+        dataset_name="roneneldan/TinyStories",
         max_examples=train_config['max_examples'],
         max_len=train_config['max_len'],
         bs=train_config['bs']
