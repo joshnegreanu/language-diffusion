@@ -1,4 +1,4 @@
-# diffusion-language-model
+# language-diffusion
 
 This repo is a playground for me to explore modern language generation methods, namely autoregressive and the emerging diffuse language models.
 
