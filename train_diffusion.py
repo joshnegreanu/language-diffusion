@@ -229,7 +229,8 @@ def main():
         vocab_size=len(dataset.vocab),
         embed_dim=model_config['emb_dim'],
         num_layers=model_config['num_layers'],
-        num_heads=model_config['num_heads']
+        num_heads=model_config['num_heads'],
+        is_causal=False
     ).to(device)
     dry_run(model, train_config['bs'], len(dataset.vocab), 100)
 

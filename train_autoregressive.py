@@ -39,7 +39,7 @@ Training  model and configurations.
 Can be changed prior to training.
 """
 train_config = {
-    'max_examples': 1000,
+    'max_examples': 500000,
     'max_len': 1000,
     'bs': 16,
     'lr': 0.0001,
@@ -49,7 +49,7 @@ train_config = {
 
 model_config = {
     'emb_dim': 256,
-    'num_layers': 24,
+    'num_layers': 8,
     'num_heads': 8
 }
 
@@ -221,7 +221,8 @@ def main():
         vocab_size=len(dataset.vocab),
         embed_dim=model_config['emb_dim'],
         num_layers=model_config['num_layers'],
-        num_heads=model_config['num_heads']
+        num_heads=model_config['num_heads'],
+        is_causal=True
     ).to(device)
     dry_run(model, train_config['bs'], len(dataset.vocab), 100)
 

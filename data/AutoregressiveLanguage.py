@@ -146,7 +146,7 @@ class AutoregressiveLanguageDataset(Dataset):
             max_len: max length of each example
             bs: int batch size
         """
-        dataset = load_dataset(dataset_name, split='train')
+        dataset = load_dataset(dataset_name, split='train', streaming=True)
         self.data = [x["text"] for x in random.sample(list(dataset), max_examples)]
         print("[dataset] loaded")
 

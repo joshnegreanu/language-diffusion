@@ -22,11 +22,10 @@ LanguageTransformer
 	MLP vocabulary classifier.
 """
 class LanguageTransformer(nn.Module):
-
 	"""
 	LanguageTransformer.__init__
 		Constructs necessary internal modules for language
-		model. Creates (if necessary) word embeddings,
+		model. Creates word embeddings if not provided,
 		positional encoding, transformer layers, transformer,
 		and linear classifier.
 
@@ -40,17 +39,16 @@ class LanguageTransformer(nn.Module):
 	def __init__(
 		self,
 		vocab_size,
-		embed_dim,
-		num_layers,
-		num_heads,
-		word_emb=None
+		embed_dim=256,
+		num_layers=8,
+		num_heads=8,
+		word_emb=None,
+		is_causal=True
 	):
 		super().__init__()
-
+		assert embed_dim % num_heads == 0
 		if word_emb is not None:
-			# freeze embeddings if provided
 			self.token_embedding = nn.Embedding.from_pretrained(word_emb)
-			# self.token_embedding.weight.data[:].requires_grad_(False)
 		else:
 			self.token_embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=embed_dim)
 
@@ -59,14 +57,16 @@ class LanguageTransformer(nn.Module):
 
 		# custom transformer
 		self.transformer = Transformer(embed_dim, num_heads, num_layers)
+		self.is_causal = is_causal
 
 		# vocab classifier
 		self.classifier = nn.Linear(in_features=embed_dim, out_features=vocab_size)
 	
+
 	"""
 	LanguageTransformer.causal_mask
-		Constructs a causal mask for training on a
-		single input sequence.
+		Constructs a causal mask for autoregressive
+		training.
 
 	Args:
 		dim: int length of training sequence
@@ -76,9 +76,9 @@ class LanguageTransformer(nn.Module):
 	"""
 	def generate_causal_mask(self, seq_len):
 		# mask out appropriate triangle half
-		inf_tensor = torch.ones(seq_len, seq_len, dtype=torch.float32) * float('-inf')
-		mask = torch.tril(inf_tensor, diagonal=0).T
-		return mask.to(device)
+		mask = (torch.triu(torch.ones(seq_len, seq_len)) == 1).transpose(0, 1)
+		mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0)).to(device)
+		return mask
 	
 
 	"""
@@ -101,8 +101,10 @@ class LanguageTransformer(nn.Module):
 		seq_embed = self.token_embedding(seq)
 		seq_embed = self.pos_enc(seq_embed)
 
-		# generate causal mask
-		mask = self.generate_causal_mask(seq_len)
+		# generate causal mask (if causal)
+		mask = None
+		if self.is_causal:
+			mask = self.generate_causal_mask(seq_len)
 		seq_out = self.transformer(seq_embed, mask)
 
 		# next token classification
