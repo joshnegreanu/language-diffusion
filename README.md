@@ -4,7 +4,7 @@ This repo is a playground for me to explore modern language generation methods, 
 
 ## Models
 
-A base decoder-only BERT-style language transformer used for both autoregressive and diffuse language generation is implemented under `models/LanguageTransformer.py`, using transformer-specific modules in `models/utils.py`.
+A base decoder-only BERT-style language transformer used for both autoregressive and diffuse language generation is implemented under [`models/LanguageTransformer.py`](./models/LanguageTransformer.py), using transformer-specific modules in [`models/utils.py`](./models/utils.py).
 
 The model can be initialized with the following arguments:
 ```python
