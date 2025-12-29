@@ -46,31 +46,28 @@ PositionalEncoding
 	via sinusoidal encoding.
 """
 class PositionalEncoding(nn.Module):
+	"""
+	PositionalEncoding.__init__
+		Initializes encoding with proper embedding dimension.
+
+	Args:
+		embed_dim: int embedding dimensionality
+	"""
 	def __init__(self, embed_dim):
 		super().__init__()
-		"""
-		PositionalEncoding.__init__
-			Initializes encoding with proper embedding dimension.
-
-		Args:
-			embed_dim: int embedding dimensionality
-		"""
-
 		self.embed_dim = embed_dim
 
+	"""
+	PositionalEncoding.forward
+		Applies sinusoidal positional encoding to input.
+	
+	Args:
+		x: torch.Tensor of size (B, N, D)
 
+	Returns:
+		torch.Tensor of size (B, N, D)
+	"""
 	def forward(self, x):
-		"""
-		PositionalEncoding.forward
-			Applies sinusoidal positional encoding to input.
-		
-		Args:
-			x: torch.Tensor of size (B, N, D)
-
-		Returns:
-			torch.Tensor of size (B, N, D)
-		"""
-
 		batch_size = x.shape[0]
 		seq_len = x.shape[1]
 

@@ -41,7 +41,7 @@ Can be changed prior to training.
 train_config = {
     'max_examples': 500000,
     'max_len': 1000,
-    'bs': 16,
+    'bs': 32,
     'lr': 0.0001,
     'weight_decay': 0.000001,
     'max_epochs': 10
