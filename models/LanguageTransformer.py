@@ -74,11 +74,11 @@ class LanguageTransformer(nn.Module):
 	Returns:
 		torch.Tensor causal mask
 	"""
-	def generate_causal_mask(self, seq_len):
-		# mask out appropriate triangle half
-		mask = (torch.triu(torch.ones(seq_len, seq_len)) == 1).transpose(0, 1)
-		mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0)).to(device)
-		return mask
+	# def generate_causal_mask(self, seq_len):
+	# 	# mask out appropriate triangle half
+	# 	mask = (torch.triu(torch.ones(seq_len, seq_len)) == 1).transpose(0, 1)
+	# 	mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0)).to(device)
+	# 	return mask
 	
 
 	"""

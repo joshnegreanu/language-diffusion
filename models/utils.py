@@ -87,94 +87,94 @@ class PositionalEncoding(nn.Module):
 		return x
 
 
-"""
-MultiheadAttention
-	Multi-headed attention with/without causal
-	masking applied.
-"""
-class MultiheadAttention(nn.Module):
-	"""
-	MultiheadAttention.__init__
-		Constructs key, query, and value matrices, and
-		final linear layer.
+# """
+# MultiheadAttention
+# 	Multi-headed attention with/without causal
+# 	masking applied.
+# """
+# class MultiheadAttention(nn.Module):
+	# """
+	# MultiheadAttention.__init__
+	# 	Constructs key, query, and value matrices, and
+	# 	final linear layer.
 	
-	Args:
-		emb_dim: int size of embedding dimension
-		num_heads: int number of attention heads
-	"""
-	def __init__(self, emb_dim, num_heads):
-		super().__init__()
+	# Args:
+	# 	emb_dim: int size of embedding dimension
+	# 	num_heads: int number of attention heads
+	# """
+	# def __init__(self, emb_dim, num_heads):
+	# 	super().__init__()
 
-		assert emb_dim % num_heads == 0
-		self.emb_dim = emb_dim
-		self.head_dim = int(emb_dim / num_heads)
-		self.num_heads = num_heads
+	# 	assert emb_dim % num_heads == 0
+	# 	self.emb_dim = emb_dim
+	# 	self.head_dim = int(emb_dim / num_heads)
+	# 	self.num_heads = num_heads
 		
-		# set up key, query, and value linear transformations
-		self.q_linear = nn.Linear(emb_dim, emb_dim)
-		self.k_linear = nn.Linear(emb_dim, emb_dim)
-		self.v_linear = nn.Linear(emb_dim, emb_dim)
+	# 	# set up key, query, and value linear transformations
+	# 	self.q_linear = nn.Linear(emb_dim, emb_dim)
+	# 	self.k_linear = nn.Linear(emb_dim, emb_dim)
+	# 	self.v_linear = nn.Linear(emb_dim, emb_dim)
 
-		self.concat_linear = nn.Linear(emb_dim, emb_dim)
+	# 	self.concat_linear = nn.Linear(emb_dim, emb_dim)
 
 
-	"""
-	MultiheadAttention.scaled_dot_product_attention
-		Applies scaled dot product attention to input
-		previously passed through key, query, and value
-		transformations.
+	# """
+	# MultiheadAttention.scaled_dot_product_attention
+	# 	Applies scaled dot product attention to input
+	# 	previously passed through key, query, and value
+	# 	transformations.
 	
-	Args:
-		q: torch.Tensor input queries
-		k: torch.Tensor input keys
-		v: torch.Tensor input values
-		causal_mask: torch.Tensor
+	# Args:
+	# 	q: torch.Tensor input queries
+	# 	k: torch.Tensor input keys
+	# 	v: torch.Tensor input values
+	# 	causal_mask: torch.Tensor
 	
-	Returns:
-		torch.Tensor of size (B, N, D)
-	"""
-	def scaled_dot_product_attention(self, q, k, v, causal_mask):
-		# dot product self attention
-		q = q.transpose(1, 2)
-		k = k.transpose(1, 2)
-		v = v.transpose(1, 2)
-		dots = torch.matmul(q, k.transpose(-2, -1)) / (self.head_dim ** 0.5)
+	# Returns:
+	# 	torch.Tensor of size (B, N, D)
+	# """
+	# def scaled_dot_product_attention(self, q, k, v, causal_mask):
+	# 	# dot product self attention
+	# 	q = q.transpose(1, 2)
+	# 	k = k.transpose(1, 2)
+	# 	v = v.transpose(1, 2)
+	# 	dots = torch.matmul(q, k.transpose(-2, -1)) / (self.head_dim ** 0.5)
 
-		# apply causal mask
-		if causal_mask is not None:
-			dots = dots + causal_mask
+	# 	# apply causal mask
+	# 	if causal_mask is not None:
+	# 		dots = dots + causal_mask
 		
-		attn = F.softmax(dots, dim=-1)
-		return torch.matmul(attn, v).transpose(1, 2).contiguous()
+	# 	attn = F.softmax(dots, dim=-1)
+	# 	return torch.matmul(attn, v).transpose(1, 2).contiguous()
 
 	
-	"""
-	MultiheadAttention.forward
-		Runs a forward pass through multiheaded attention
-		layer. Splits input dimensions across heads,
-		runs through query, key, and value transformations,
-		applies scaled dot product attention, concatenates
-		and passes through a final linear layer.
+	# """
+	# MultiheadAttention.forward
+	# 	Runs a forward pass through multiheaded attention
+	# 	layer. Splits input dimensions across heads,
+	# 	runs through query, key, and value transformations,
+	# 	applies scaled dot product attention, concatenates
+	# 	and passes through a final linear layer.
 	
-	Args:
-		x: torch.Tensor of size (B, N, D)
-		causal_mask: torch.Tensor of size (N, N)
+	# Args:
+	# 	x: torch.Tensor of size (B, N, D)
+	# 	causal_mask: torch.Tensor of size (N, N)
 	
-	Returns:
-		torch.Tensor of size (B, N, D)
-	"""
-	def forward(self, x, causal_mask):
-		bs = x.shape[0]
+	# Returns:
+	# 	torch.Tensor of size (B, N, D)
+	# """
+	# def forward(self, x, causal_mask):
+	# 	bs = x.shape[0]
 
-		# run through query, key, and value transformations
-		q = self.q_linear(x).view(bs, -1, self.num_heads, self.head_dim)
-		k = self.k_linear(x).view(bs, -1, self.num_heads, self.head_dim)
-		v = self.v_linear(x).view(bs, -1, self.num_heads, self.head_dim)
+	# 	# run through query, key, and value transformations
+	# 	q = self.q_linear(x).view(bs, -1, self.num_heads, self.head_dim)
+	# 	k = self.k_linear(x).view(bs, -1, self.num_heads, self.head_dim)
+	# 	v = self.v_linear(x).view(bs, -1, self.num_heads, self.head_dim)
 
-		# calculate attentions, concatenate multiple heads
-		attn = self.scaled_dot_product_attention(q, k, v, causal_mask)
-		attn = attn.reshape(bs, -1, self.emb_dim)
-		return self.concat_linear(attn)
+	# 	# calculate attentions, concatenate multiple heads
+	# 	attn = self.scaled_dot_product_attention(q, k, v, causal_mask)
+	# 	attn = attn.reshape(bs, -1, self.emb_dim)
+	# 	return self.concat_linear(attn)
 
 
 """
@@ -195,11 +195,6 @@ class TransformerLayer(nn.Module):
 	"""
 	def __init__(self, emb_dim, num_heads):
 		super().__init__()
-		
-		self.q_linear = nn.Linear(emb_dim, emb_dim)
-		self.k_linear = nn.Linear(emb_dim, emb_dim)
-		self.v_linear = nn.Linear(emb_dim, emb_dim)
-
 		self.attn_layer = nn.MultiheadAttention(emb_dim, num_heads, batch_first=True)
 
 		self.feed_forward = nn.Sequential(
@@ -208,10 +203,7 @@ class TransformerLayer(nn.Module):
 			nn.Linear(1024, emb_dim)
 		)
 
-		self.batch_norm = nn.BatchNorm1d(emb_dim)
-
-		self.emb_dim = emb_dim
-		self.num_heads = num_heads
+		self.layer_norm = nn.LayerNorm(emb_dim)
 	
 
 	"""
@@ -229,14 +221,14 @@ class TransformerLayer(nn.Module):
 		torch.Tensor of size (B, N, D)
 	"""
 	def forward(self, x, is_causal):
-		# run through residual attention layer
+		# run through residual attention layer (with causal mask if specified)
 		mask = torch.triu(torch.ones(x.shape[1], x.shape[1]), diagonal=1).bool().to(device)
 		x = x + self.attn_layer(x, x, x, is_causal=is_causal, attn_mask=mask)[0]
-		x = self.batch_norm(x.transpose(1, 2)).transpose(1, 2)
+		x = self.layer_norm(x)
 
 		# run through feed forward network
 		x = x + self.feed_forward(x)
-		return self.batch_norm(x.transpose(1, 2)).transpose(1, 2)
+		return self.layer_norm(x)
 
 
 """
@@ -257,12 +249,10 @@ class Transformer(nn.Module):
 	"""
 	def __init__(self, emb_dim, num_heads, num_layers):
 		super().__init__()
-
 		# build tranformer layers
-		transformer_layers = []
-		for _ in range(num_layers):
-			transformer_layers.append(TransformerLayer(emb_dim, num_heads))
-		self.transformer_layers = SequentialTransformerLayers(*transformer_layers)
+		self.transformer_layers = nn.ModuleList(
+			[TransformerLayer(emb_dim, num_heads) for _ in range(num_layers)]
+		)
 		
 	
 	"""
@@ -275,4 +265,7 @@ class Transformer(nn.Module):
 		causal_mask: torch.Tensor of size (N, N)
 	"""
 	def forward(self, x, is_causal):
-		return self.transformer_layers(x, is_causal)
+		# run through layers
+		for layer in self.transformer_layers:
+			x = layer(x, is_causal)
+		return x
