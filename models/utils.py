@@ -34,9 +34,9 @@ class SequentialTransformerLayers(nn.Sequential):
 		torch.Tensor output of size (B, N, D)
 	"""
 	def forward(self, *inputs):
-		x, causal_mask = inputs
+		x, is_causal = inputs
 		for module in self._modules.values():
-			x = module(x, causal_mask)
+			x = module(x, is_causal)
 		return x
 
 
@@ -195,7 +195,12 @@ class TransformerLayer(nn.Module):
 	"""
 	def __init__(self, emb_dim, num_heads):
 		super().__init__()
-		self.attn_layer = MultiheadAttention(emb_dim, num_heads)
+		
+		self.q_linear = nn.Linear(emb_dim, emb_dim)
+		self.k_linear = nn.Linear(emb_dim, emb_dim)
+		self.v_linear = nn.Linear(emb_dim, emb_dim)
+
+		self.attn_layer = nn.MultiheadAttention(emb_dim, num_heads, batch_first=True)
 
 		self.feed_forward = nn.Sequential(
 			nn.Linear(emb_dim, 1024),
@@ -223,9 +228,10 @@ class TransformerLayer(nn.Module):
 	Returns:
 		torch.Tensor of size (B, N, D)
 	"""
-	def forward(self, x, causal_mask):
+	def forward(self, x, is_causal):
 		# run through residual attention layer
-		x = x + self.attn_layer(x, causal_mask)
+		mask = torch.triu(torch.ones(x.shape[1], x.shape[1]), diagonal=1).bool().to(device)
+		x = x + self.attn_layer(x, x, x, is_causal=is_causal, attn_mask=mask)[0]
 		x = self.batch_norm(x.transpose(1, 2)).transpose(1, 2)
 
 		# run through feed forward network
@@ -268,5 +274,5 @@ class Transformer(nn.Module):
 		x: torch.Tensor of size (B, N, D)
 		causal_mask: torch.Tensor of size (N, N)
 	"""
-	def forward(self, x, causal_mask = None):
-		return self.transformer_layers(x, causal_mask)
+	def forward(self, x, is_causal):
+		return self.transformer_layers(x, is_causal)

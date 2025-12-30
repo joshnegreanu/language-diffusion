@@ -95,17 +95,10 @@ class LanguageTransformer(nn.Module):
 		torch.Tensor of size (B, N, V)
 	"""
 	def forward(self, seq):
-		seq_len = seq.shape[1]
-
 		# embed sequence w poisitional encodings
 		seq_embed = self.token_embedding(seq)
 		seq_embed = self.pos_enc(seq_embed)
-
-		# generate causal mask (if causal)
-		mask = None
-		if self.is_causal:
-			mask = self.generate_causal_mask(seq_len)
-		seq_out = self.transformer(seq_embed, mask)
+		seq_out = self.transformer(seq_embed, self.is_causal)
 
 		# next token classification
 		out = self.classifier(seq_out)
