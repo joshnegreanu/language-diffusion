@@ -35,6 +35,7 @@ class LanguageTransformer(nn.Module):
 		num_layers: int number of transformer layers
 		num_heads: int number of attention heads per layer
 		word_emb: None or torch.Tensor of size (V, D)
+		is_causal: boolean causal masking flag
 	"""
 	def __init__(
 		self,
@@ -61,24 +62,6 @@ class LanguageTransformer(nn.Module):
 
 		# vocab classifier
 		self.classifier = nn.Linear(in_features=embed_dim, out_features=vocab_size)
-	
-
-	"""
-	LanguageTransformer.causal_mask
-		Constructs a causal mask for autoregressive
-		training.
-
-	Args:
-		dim: int length of training sequence
-	
-	Returns:
-		torch.Tensor causal mask
-	"""
-	# def generate_causal_mask(self, seq_len):
-	# 	# mask out appropriate triangle half
-	# 	mask = (torch.triu(torch.ones(seq_len, seq_len)) == 1).transpose(0, 1)
-	# 	mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0)).to(device)
-	# 	return mask
 	
 
 	"""
