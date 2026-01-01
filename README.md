@@ -2,6 +2,21 @@
 
 This repo is a playground for me to explore modern language generation methods, namely autoregressive and the emerging diffuse language models.
 
+## Project Structure
+
+Below is a repo folder structure diagram:
+```
+language-diffusion/
+├── data/
+│   └── AutoregressiveLanguage.py
+│   └── DiffuseLanguage.py
+├── models/
+│   └── LanguageTransformer.py
+│   └── utils.py
+...
+└── README.md
+```
+
 ## Models
 
 A base decoder-only BERT-style language transformer used for both autoregressive and diffuse language generation is implemented under [`models/LanguageTransformer.py`](./models/LanguageTransformer.py), using transformer-specific modules in [`models/utils.py`](./models/utils.py).
@@ -15,15 +30,15 @@ model_config = {
 }
 
 model = LanguageTransformer(
-        vocab_size=model_config['vocab_len'],
-        embed_dim=model_config['embed_dim'],
-        num_layers=model_config['num_layers'],
-        num_heads=model_config['num_heads'],
-        is_causal=True
-    )
+    vocab_size=model_config['vocab_len'],
+    embed_dim=model_config['embed_dim'],
+    num_layers=model_config['num_layers'],
+    num_heads=model_config['num_heads'],
+    is_causal=True
+)
 ```
 
-The `is_causal` arguments will automatically generate a standard autoregressive causal mask and apply during training if true, and omit any masking if false. Ensure `emb_dim` is divisible by `num_heads`.
+The `is_causal` arguments will automatically generate a standard autoregressive causal mask and apply during training if `True`, and omit any masking if `False`. Ensure `emb_dim` is divisible by `num_heads`.
 
 ## Autoregressive Language Generation
 
