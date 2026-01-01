@@ -22,7 +22,7 @@ from staticvectors import StaticVectors
 from datetime import datetime
 from tqdm import tqdm
 
-from models.LanguageDiffusion import LanguageDiffusion
+from models.LanguageTransformer import LanguageTransformer
 from data.DiffuseLanguage import DiffuseLanguageDataset
 
 # dynamically select device
@@ -39,9 +39,9 @@ Training  model and configurations.
 Can be changed prior to training.
 """
 train_config = {
-    'max_examples': 100000,
+    'max_examples': 500000,
     'max_len': 1000,
-    'bs': 16,
+    'bs': 32,
     'lr': 0.0001,
     'weight_decay': 0.000001,
     'max_epochs': 10
@@ -49,7 +49,7 @@ train_config = {
 
 model_config = {
     'emb_dim': 256,
-    'num_layers': 24,
+    'num_layers': 8,
     'num_heads': 8
 }
 
@@ -168,10 +168,10 @@ def train(model, dataloader, vocab):
             wandb.log({'learning-rate': scheduler.get_last_lr()[0]}, step=iteration)
 
             # pick masking rate
-            t = random.uniform(0.001, 0.999)
+            t = random.uniform(0, 1)
 
             # mask non-padding tokens
-            mask = torch.rand(batch.shape) < t
+            mask = torch.rand(batch.shape) <= t
             masks = batch.masked_fill(mask, vocab.word2idx['<m>']).to(device)
             # labels = batch.masked_fill(~mask, vocab.word2idx['<p>']).to(device)
             labels = batch.to(device)
@@ -180,7 +180,7 @@ def train(model, dataloader, vocab):
 
             # compute loss
             loss = criterion(out.permute(0, 2, 1), labels)
-            loss /= t
+            # loss /= t
             epoch_loss += loss
             wandb.log({"loss": loss.item()}, step=iteration)
 
@@ -218,14 +218,14 @@ main
 def main():
     # create dataset
     dataset = DiffuseLanguageDataset(
-        dataset_name="Elriggs/openwebtext-100k",
+        dataset_name="roneneldan/TinyStories",
         max_examples=train_config['max_examples'],
         max_len=train_config['max_len'],
         bs=train_config['bs']
     )
 
     # create language model
-    model = LanguageDiffusion(
+    model = LanguageTransformer(
         vocab_size=len(dataset.vocab),
         embed_dim=model_config['emb_dim'],
         num_layers=model_config['num_layers'],

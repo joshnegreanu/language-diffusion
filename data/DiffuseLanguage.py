@@ -105,16 +105,16 @@ class DiffuseVocabulary:
             cntr.update( [str(x).strip().lower() for x in self.tokenizer(datapoint)] )
 
         tokens = [t for t,c in cntr.items() if c >= 30]
-        word2idx = {t:i+4 for i,t in enumerate(tokens)}
-        idx2word = {i+4:t for i,t in enumerate(tokens)}
+        word2idx = {t:i+5 for i,t in enumerate(tokens)}
+        idx2word = {i+5:t for i,t in enumerate(tokens)}
         
         # padding token
         word2idx['<p>'] = 0
         idx2word[0] = '<p>'
 
         # start of sequence token
-        word2idx['<m>'] = 1
-        idx2word[1] = '<m>'
+        word2idx['<s>'] = 1
+        idx2word[1] = '<s>'
 
         # end of sequence token
         word2idx['</s>'] = 2
@@ -123,6 +123,10 @@ class DiffuseVocabulary:
         # unkown word token
         word2idx['<?>'] = 3
         idx2word[3] = '<?>'
+
+        # mask token
+        word2idx['<m>'] = 4
+        idx2word[4] = '<m>'
         
         return word2idx, idx2word
 

@@ -10,4 +10,4 @@
 source /nfs/stak/users/negreanj/hpc-share/miniforge/etc/profile.d/conda.sh
 conda init
 conda activate torch_env
-python train_autoregressive.py
+python train_diffusion.py
